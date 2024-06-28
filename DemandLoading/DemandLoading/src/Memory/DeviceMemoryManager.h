@@ -72,23 +72,23 @@ class DeviceMemoryManager
         return m_tilePool.getAllocationHandle( bh.arenaId );
     }
     
-    /// Returns true if TileBlocks need to be freed.
+    /// Return true if TileBlocks need to be freed.
     bool needTileBlocksFreed() const 
     { 
         if( m_tilePool.trackedSize() < m_tilePool.maxSize() )
             return false;
         return m_tilePool.currentFreeSpace() < ( m_options->maxStagedPages * otk::TILE_SIZE_IN_BYTES );
     }
-    /// Returns the arena size for m_tilePool.
+    /// Return the arena size for m_tilePool.
     size_t getTilePoolArenaSize() const { return static_cast<size_t>( m_tilePool.allocationGranularity() ); }
     /// Set the max texture memory
     void setMaxTextureTileMemory( size_t maxMemory ) { m_tilePool.setMaxSize( static_cast<uint64_t>( maxMemory ) ); }
 
-    /// Returns the amount of device memory allocated.
-    size_t getTotalDeviceMemory() const
-    {
-        return m_samplerPool.trackedSize() + m_deviceContextMemory.trackedSize() + m_tilePool.trackedSize();
-    }
+    /// Return the amount of device memory allocated in different pools.
+    size_t getSamplerMemory() const { return m_samplerPool.trackedSize(); }
+    size_t getDeviceContextMemory() const { return m_deviceContextMemory.trackedSize(); }
+    size_t getTextureTileMemory() const { return m_tilePool.trackedSize(); }
+    size_t getTotalDeviceMemory() const { return getSamplerMemory() + getDeviceContextMemory() + getTextureTileMemory(); }
 
   private:
     std::shared_ptr<Options> m_options;
