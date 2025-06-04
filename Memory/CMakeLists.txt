@@ -5,10 +5,11 @@
 # Using the latest CMake is highly recommended, to ensure up-to-date CUDA language support.
 cmake_minimum_required(VERSION 3.23 FATAL_ERROR)
 include(Policies)
+include(SetCxxStandard)
 
 project(Memory LANGUAGES C CXX CUDA)
-set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
+
+set_cxx_standard(11)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 include(BuildConfig)
@@ -128,6 +129,7 @@ target_sources(OptiXMemory
   BASE_DIRS include
   FILES
   include/OptiXToolkit/OptiXMemory/Builders.h
+  include/OptiXToolkit/OptiXMemory/CompileOptions.h
   include/OptiXToolkit/OptiXMemory/Record.h
   include/OptiXToolkit/OptiXMemory/SyncRecord.h
 )
