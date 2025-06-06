@@ -45,4 +45,4 @@ if(TARGET OptiXToolkit::DemandLoading)
 endif()
 
 add_subdirectory(OTKAppBase)
-
+add_subdirectory(SplatBench)

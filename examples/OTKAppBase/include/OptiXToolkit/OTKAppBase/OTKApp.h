@@ -25,7 +25,7 @@
 namespace otkApp
 {
 
-enum OTKAppUIMode {UI_NONE=0, UI_IMAGEVIEW, UI_FIRSTPERSON};
+enum OTKAppUIMode {UI_NONE=0, UI_IMAGEVIEW, UI_FIRSTPERSON, UI_ORBIT};
 
 class OTKApp
 {
@@ -143,6 +143,7 @@ class OTKApp
     void panCamera( float3 pan );
     void zoomCamera( float zoom );
     void rotateCamera( float rot );
+    void orbitCamera( float hrot, float vrot );
 
     // OptiX program names
     const char* m_raygenName = "__raygen__rg";
@@ -155,5 +156,6 @@ class OTKApp
 };
 
 void setGLFWCallbacks( OTKApp* app );
+void* cudaMallocAndCopyToDevice( void* data, size_t dataSizeInBytes );
 
 } // namespace otkApp
