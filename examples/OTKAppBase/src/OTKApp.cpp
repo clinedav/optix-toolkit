@@ -104,18 +104,9 @@ void OTKApp::createContext( OTKAppPerDeviceOptixState& state )
 
 void OTKApp::buildAccel( OTKAppPerDeviceOptixState& state )
 {
-    // Copy vertex data to device
-    void* d_vertices = nullptr;
-    const size_t vertices_size_bytes = m_vertices.size() * sizeof( float4 );
-    OTK_ERROR_CHECK( cudaMalloc( &d_vertices, vertices_size_bytes ) );
-    OTK_ERROR_CHECK( cudaMemcpy( d_vertices, m_vertices.data(), vertices_size_bytes, cudaMemcpyHostToDevice ) );
-    state.d_vertices = reinterpret_cast<CUdeviceptr>( d_vertices );
-
-    // Copy material indices to device
-    void* d_material_indices = nullptr;
-    const size_t material_indices_size_bytes = m_material_indices.size() * sizeof( uint32_t );
-    OTK_ERROR_CHECK( cudaMalloc( &d_material_indices, material_indices_size_bytes ) );
-    OTK_ERROR_CHECK( cudaMemcpy( d_material_indices, m_material_indices.data(), material_indices_size_bytes, cudaMemcpyHostToDevice ) );
+    // Copy vertex and material data to device
+    state.d_vertices = (CUdeviceptr) cudaMallocAndCopyToDevice( m_vertices.data(), m_vertices.size() * sizeof(float4) );
+    uint32_t* d_material_indices = (uint32_t*) cudaMallocAndCopyToDevice( m_material_indices.data(), m_material_indices.size() * sizeof( uint32_t ) );
 
     // Make triangle input flags (one per sbt record). 
     std::vector<uint32_t> triangle_input_flags( m_materials.size(), m_optixGeometryFlags );
@@ -232,17 +223,10 @@ void OTKApp::copyGeometryToDevice()
         // m_material_indices copied in createSBT
         // m_materials copied in createSBT
 
-        // m_normals
-        OTK_ERROR_CHECK( cudaMalloc( &state.d_normals, m_normals.size() * sizeof(float3) ) );
-        OTK_ERROR_CHECK( cudaMemcpy( state.d_normals, m_normals.data(),  m_normals.size() * sizeof(float3), cudaMemcpyHostToDevice ) );
-
-        // m_tex_coords
-        OTK_ERROR_CHECK( cudaMalloc( &state.d_tex_coords, m_tex_coords.size() * sizeof(float2) ) );
-        OTK_ERROR_CHECK( cudaMemcpy( state.d_tex_coords, m_tex_coords.data(),  m_tex_coords.size() * sizeof(float2), cudaMemcpyHostToDevice ) );
+        state.d_normals = (float3*) cudaMallocAndCopyToDevice( m_normals.data(), m_normals.size() * sizeof(float3) );
+        state.d_tex_coords = (float2*) cudaMallocAndCopyToDevice( m_tex_coords.data(), m_tex_coords.size() * sizeof(float2) );
     }
 }
-
-
 
 
 void OTKApp::createModule( OTKAppPerDeviceOptixState& state, const char* moduleCode, size_t codeSize )
@@ -343,26 +327,17 @@ void OTKApp::createPipeline( OTKAppPerDeviceOptixState& state )
 void OTKApp::createSBT( OTKAppPerDeviceOptixState& state )
 {
     // Raygen record
-    void*  d_raygen_record = nullptr;
-    const size_t raygen_record_size = sizeof( RayGenSbtRecord );
-    OTK_ERROR_CHECK( cudaMalloc( &d_raygen_record, raygen_record_size ) );
     RayGenSbtRecord raygen_record = {};
     OTK_ERROR_CHECK( optixSbtRecordPackHeader( state.raygen_prog_group, &raygen_record ) );
-    OTK_ERROR_CHECK( cudaMemcpy( d_raygen_record, &raygen_record, raygen_record_size, cudaMemcpyHostToDevice ) );
+    void* d_raygen_record = (void*) cudaMallocAndCopyToDevice( &raygen_record, sizeof( RayGenSbtRecord ) );
 
     // Miss record
-    void* d_miss_record = nullptr;
-    const size_t miss_record_size = sizeof( MissSbtRecord );
-    OTK_ERROR_CHECK( cudaMalloc( &d_miss_record, miss_record_size ) );
     MissSbtRecord miss_record;
     OTK_ERROR_CHECK( optixSbtRecordPackHeader( state.miss_prog_group, &miss_record ) );
-    OTK_ERROR_CHECK( cudaMemcpy( d_miss_record, &miss_record, miss_record_size, cudaMemcpyHostToDevice ) );
+    void* d_miss_record = (void*) cudaMallocAndCopyToDevice( &miss_record, sizeof( MissSbtRecord ) );;
 
     // Hitgroup records (one for each material)
     const unsigned int MAT_COUNT = static_cast<unsigned int>( m_materials.size() );
-    void* d_hitgroup_records = nullptr;
-    const size_t hitgroup_record_size = sizeof( TriangleHitGroupSbtRecord );
-    OTK_ERROR_CHECK( cudaMalloc( &d_hitgroup_records, hitgroup_record_size * MAT_COUNT ) );
     std::vector<TriangleHitGroupSbtRecord> hitgroup_records( MAT_COUNT );
     for( unsigned int mat_idx = 0; mat_idx < MAT_COUNT; ++mat_idx )
     {
@@ -374,15 +349,15 @@ void OTKApp::createSBT( OTKAppPerDeviceOptixState& state )
         hg_data->normals = state.d_normals;
         hg_data->tex_coords = state.d_tex_coords;
     }
-    OTK_ERROR_CHECK( cudaMemcpy( d_hitgroup_records, &hitgroup_records[0], hitgroup_record_size * MAT_COUNT, cudaMemcpyHostToDevice ) );
+    void* d_hitgroup_records = cudaMallocAndCopyToDevice( hitgroup_records.data(), sizeof( TriangleHitGroupSbtRecord ) * MAT_COUNT );
 
     // Set up SBT
     state.sbt.raygenRecord                = reinterpret_cast<CUdeviceptr>( d_raygen_record );
     state.sbt.missRecordBase              = reinterpret_cast<CUdeviceptr>( d_miss_record );
-    state.sbt.missRecordStrideInBytes     = static_cast<uint32_t>( miss_record_size );
+    state.sbt.missRecordStrideInBytes     = static_cast<uint32_t>( sizeof( MissSbtRecord ) );
     state.sbt.missRecordCount             = 1;
     state.sbt.hitgroupRecordBase          = reinterpret_cast<CUdeviceptr>( d_hitgroup_records );
-    state.sbt.hitgroupRecordStrideInBytes = static_cast<uint32_t>( hitgroup_record_size );
+    state.sbt.hitgroupRecordStrideInBytes = static_cast<uint32_t>( sizeof( TriangleHitGroupSbtRecord ) );
     state.sbt.hitgroupRecordCount         = MAT_COUNT;
 }
 
@@ -537,12 +512,37 @@ void OTKApp::zoomCamera( float zoom )
 
 void OTKApp::rotateCamera( float rot )
 {
+    // FIXME: This rotates around Z, but should rotate around VUP.
     if( rot == 0.0f )
         return;
     float3 U, V, W;
     m_camera.UVWFrame( U, V, W );
     W = float3{ W.x * cosf(rot) - W.y * sinf(rot), W.x * sinf(rot) + W.y * cosf(rot), W.z };
     m_camera.setLookAt( m_camera.eye() + W );
+    m_subframeId = 0;
+}
+
+void OTKApp::orbitCamera( float hrot, float vrot )
+{
+    // FIXME: This orbits around Y, but should orbit around VUP
+    if( hrot == 0 && vrot == 0 )
+        return;
+
+    float3 U, V, W;
+    m_camera.UVWFrame( U, V, W );
+    W = float3{ W.x * cosf(hrot) - W.z * sinf(hrot), W.y, W.x * sinf(hrot) + W.z * cosf(hrot) };
+
+    float r = length( W );
+    float xz = sqrtf( W.x * W.x + W.z * W.z );
+    float y = W.y;
+    float vangle = -vrot + asinf( y / r );
+    vangle = std::min( vangle, 1.3f );
+    vangle = std::max( vangle, -1.3f );
+    y = sinf(vangle) * r;
+    float xzScale = cosf(vangle) / (xz/r);
+    W = float3{ W.x * xzScale, y, W.z * xzScale };
+
+    m_camera.setEye( m_camera.lookAt() - W );
     m_subframeId = 0;
 }
 
@@ -764,6 +764,20 @@ void OTKApp::cursorPosCallback( GLFWwindow* /*window*/, double xpos, double ypos
             rotateCamera( -rotScale * dx );
     }
 
+    // Orbit control
+    if( m_uiMode == UI_ORBIT )
+    {
+        const float orbitScale = 0.002f;
+        const float zoomScale = 1.003f;
+        float3 U, V, W;
+        m_camera.UVWFrame( U, V, W );
+
+        if( m_mouseButton == GLFW_MOUSE_BUTTON_LEFT )
+            orbitCamera( orbitScale * dx, orbitScale * dy );
+        else if( m_mouseButton == GLFW_MOUSE_BUTTON_RIGHT )
+            zoomCamera( powf( zoomScale, ( dy - dx ) ) );
+    }
+
     if( m_mouseButton != NO_BUTTON )
         m_subframeId = 0;
     m_mousePrevX = xpos;
@@ -805,7 +819,6 @@ void OTKApp::pollKeys()
         float3 U, V, W;
         m_camera.UVWFrame( U, V, W );
 
-        // Assuming Y Up
         float uPan = 0.04f * ( glfwGetKey( wnd, GLFW_KEY_D ) - glfwGetKey( wnd, GLFW_KEY_A ) );
         float wPan = 0.04f * ( glfwGetKey( wnd, GLFW_KEY_W ) - glfwGetKey( wnd, GLFW_KEY_S ) );
         float upPan = 0.01f * ( glfwGetKey( wnd, GLFW_KEY_E ) - glfwGetKey( wnd, GLFW_KEY_Q ) );
@@ -813,6 +826,23 @@ void OTKApp::pollKeys()
 
         float rot = 0.003f * ( glfwGetKey( wnd, GLFW_KEY_J ) - glfwGetKey( wnd, GLFW_KEY_L ) );
         rotateCamera( rot );
+    }
+
+    // Orbit control
+    if( m_uiMode == UI_ORBIT )
+    {
+        const float orbitScale  = 0.003f;
+        const float zoomScale = 1.003f;
+        float3 U, V, W;
+        m_camera.UVWFrame( U, V, W );
+
+        float hrot = -orbitScale * ( glfwGetKey( wnd, GLFW_KEY_A ) - glfwGetKey( wnd, GLFW_KEY_D ) );
+        float vrot = orbitScale * ( glfwGetKey( wnd, GLFW_KEY_W ) - glfwGetKey( wnd, GLFW_KEY_S ) );
+        float zoom = glfwGetKey( wnd, GLFW_KEY_Q ) ? zoomScale : 1.0f;
+        zoom /= glfwGetKey( wnd, GLFW_KEY_E ) ? zoomScale : 1.0f;
+
+        orbitCamera( hrot, vrot );
+        zoomCamera( zoom );
     }
 }
 
@@ -863,6 +893,14 @@ void setGLFWCallbacks( OTKApp* app )
     glfwSetCursorPosCallback( app->getWindow(), cursorPosCallback );
     glfwSetKeyCallback( app->getWindow(), keyCallback );
     glfwSetWindowSizeCallback( app->getWindow(), windowSizeCallback );
+}
+
+void* cudaMallocAndCopyToDevice( void* data, size_t dataSizeInBytes )
+{
+    void* d_data = nullptr;
+    OTK_ERROR_CHECK( cudaMalloc( &d_data, dataSizeInBytes ) );
+    OTK_ERROR_CHECK( cudaMemcpy( d_data, data, dataSizeInBytes, cudaMemcpyHostToDevice ) );
+    return d_data;
 }
 
 } // namespace OTKApp

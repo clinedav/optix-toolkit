@@ -38,6 +38,8 @@ struct OTKAppPerDeviceOptixState
 
     std::shared_ptr<demandLoading::DemandLoader> demandLoader;  // Manages demand load requests
     demandLoading::Ticket       ticket;                         // Tracks demand load requests for last OptiX launch
+
+    void* extraData;
 };
 
 // Shader binding table records
