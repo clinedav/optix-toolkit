@@ -3,6 +3,13 @@
 #
 
 include(BuildConfig)
+include(FetchOptiX)
+
+# Check OptiX version (9.0.0 = 90000)
+if(OPTIX_VERSION LESS 90000)
+  message(STATUS "Skipping NeuralTextures: requires OptiX 9.0.0 or newer. Found version ${OPTIX_VERSION}.")
+  return()
+endif()
 
 otk_add_library( NeuralTextures
   NeuralTextureSource.cpp
@@ -25,6 +32,7 @@ target_include_directories( NeuralTextures
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
   ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
+  ${OptiX_INCLUDE_DIR}
   )
 
 target_link_libraries( NeuralTextures
