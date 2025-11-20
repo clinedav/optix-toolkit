@@ -4,10 +4,12 @@
 
 #pragma once
 
+#include <cuda_runtime.h>
+
 #include <OptiXToolkit/ImageSource/ImageSource.h>
 #include <OptiXToolkit/ImageSource/TextureInfo.h>
-
-#include <string>
+#include "NtcTextureSet.h"
+#include "NtcImageReader.h"
 
 namespace imageSource {
 
@@ -15,8 +17,8 @@ namespace imageSource {
 class NeuralTextureSource : public imageSource::ImageSourceBase
 {
   public:
-    /// Create a neural texture source with the specified dimensions and model path
-    NeuralTextureSource( unsigned int width, unsigned int height, const std::string& modelPath );
+    /// Create a neural texture source with the specified dimensions
+    explicit NeuralTextureSource( const std::string& filename );
 
     /// The destructor is virtual.
     ~NeuralTextureSource() override = default;
@@ -25,7 +27,7 @@ class NeuralTextureSource : public imageSource::ImageSourceBase
     void open( imageSource::TextureInfo* info ) override;
 
     /// The close operation.
-    void close() override;
+    void close() override { m_isOpen = false; }
 
     /// Check if image is currently open.
     bool isOpen() const override { return m_isOpen; }
@@ -34,28 +36,26 @@ class NeuralTextureSource : public imageSource::ImageSourceBase
     const imageSource::TextureInfo& getInfo() const override { return m_info; }
 
     /// Return the mode in which the image fills part of itself
-    CUmemorytype getFillType() const override { return CU_MEMORYTYPE_DEVICE; }
+    CUmemorytype getFillType() const override { return CU_MEMORYTYPE_HOST; }
 
     /// Read the specified tile or mip level, returning the data in dest.  dest must be large enough
     /// to hold the tile.  Pixels outside the bounds of the mip level will be filled in with black.
-    bool readTile( char* dest, unsigned int mipLevel, const imageSource::Tile& tile, CUstream stream ) override;
+    bool readTile( char* dest, unsigned int latentMipLevel, const imageSource::Tile& tile, CUstream stream ) override;
 
     /// Read the specified mipLevel.  Returns true for success.
-    bool readMipLevel( char* dest, unsigned int mipLevel, unsigned int expectedWidth, unsigned int expectedHeight, CUstream stream ) override;
-
-    /// Read the mip tail into a single buffer
-    bool readMipTail( char* dest,
-                      unsigned int mipTailFirstLevel,
-                      unsigned int numMipLevels,
-                      const uint2* mipLevelDims,
-                      CUstream stream ) override;
+    bool readMipLevel( char* dest, unsigned int latentMipLevel, unsigned int expectedWidth, unsigned int expectedHeight, CUstream stream ) override;
 
     /// Read the base color of the image (1x1 mip level) as a float4. Returns true on success.
-    bool readBaseColor( float4& dest ) override;
+    bool readBaseColor( float4& /*dest*/ ) override { return false; }
+
+    /// Get the inference data for this neural texture
+    const NtcTextureSet& getNtcTextureSet() { return m_imageReader.getTextureSet(); } 
 
   private:
-    imageSource::TextureInfo m_info;
-    std::string m_modelPath;
+
+    std::string m_filename;
+    NtcImageReader m_imageReader;
+    imageSource::TextureInfo m_info; // latent texture info
     bool m_isOpen;
 };
 

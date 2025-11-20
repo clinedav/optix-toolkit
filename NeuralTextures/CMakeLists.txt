@@ -4,6 +4,7 @@
 
 include(BuildConfig)
 include(FetchOptiX)
+include(FetchRapidJSON)
 
 # Check OptiX version (9.0.0 = 90000)
 if(OPTIX_VERSION LESS 90000)
@@ -13,6 +14,7 @@ endif()
 
 otk_add_library( NeuralTextures
   NeuralTextureSource.cpp
+  NtcImageReader.cpp
 )
 
 set_property(TARGET NeuralTextures PROPERTY FOLDER NeuralTextures)
@@ -25,11 +27,16 @@ target_sources(NeuralTextures
   BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}
   FILES
   NeuralTextureSource.h
+  NtcImageReader.h
+  NtcTextureSet.h
+  InferenceConstants.h
+  InferenceOptix.h
 )
 
 target_include_directories( NeuralTextures
   PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/..>
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
   ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
   ${OptiX_INCLUDE_DIR}
@@ -42,6 +49,29 @@ target_link_libraries( NeuralTextures
   PRIVATE
   OptiXToolkit::Error
   )
+
+# Link RapidJSON (header-only library)
+# RapidJSON doesn't create a target in FetchContent, so we need to add its include directory manually
+# Using PUBLIC because NtcImageReader.h includes rapidjson headers
+if(RapidJSON_SOURCE_DIR)
+  target_include_directories(NeuralTextures PUBLIC ${RapidJSON_SOURCE_DIR}/include)
+elseif(RapidJSON_INCLUDE_DIRS)
+  target_include_directories(NeuralTextures PUBLIC ${RapidJSON_INCLUDE_DIRS})
+elseif(RapidJSON_INCLUDE_DIR)
+  target_include_directories(NeuralTextures PUBLIC ${RapidJSON_INCLUDE_DIR})
+elseif(RapidJSON_DIR)
+  # RapidJSON_DIR points to build dir, source dir is typically ../rapidjson-src/include
+  get_filename_component(RAPIDJSON_PARENT_DIR "${RapidJSON_DIR}" DIRECTORY)
+  if(EXISTS "${RAPIDJSON_PARENT_DIR}/rapidjson-src/include")
+    target_include_directories(NeuralTextures PUBLIC "${RAPIDJSON_PARENT_DIR}/rapidjson-src/include")
+  endif()
+else()
+  # Fallback: try to find it
+  find_path(RAPIDJSON_INCLUDE_DIR rapidjson/document.h)
+  if(RAPIDJSON_INCLUDE_DIR)
+    target_include_directories(NeuralTextures PUBLIC ${RAPIDJSON_INCLUDE_DIR})
+  endif()
+endif()
 
 set_target_properties(NeuralTextures PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
 

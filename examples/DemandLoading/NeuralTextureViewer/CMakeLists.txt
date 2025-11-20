@@ -33,6 +33,7 @@ otk_add_executable( neuralTextureViewer
 target_link_libraries( neuralTextureViewer
   neuralTextureViewerKernel
   OptiXToolkit::DemandLoading
+  OptiXToolkit::NeuralTextures
   OptiXToolkit::OTKAppBase
   OptiXToolkit::Gui
   OptiXToolkit::Util

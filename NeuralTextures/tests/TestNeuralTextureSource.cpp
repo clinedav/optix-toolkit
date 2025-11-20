@@ -23,14 +23,14 @@ protected:
 
 TEST_F( TestNeuralTextureSource, Constructor )
 {
-    NeuralTextureSource source( 512, 512, "dummy_model.pth" );
+    NeuralTextureSource source( 512, 512 );
     
     EXPECT_FALSE( source.isOpen() );
 }
 
 TEST_F( TestNeuralTextureSource, OpenClose )
 {
-    NeuralTextureSource source( 256, 256, "test_model.pth" );
+    NeuralTextureSource source( 256, 256 );
     
     EXPECT_FALSE( source.isOpen() );
     
@@ -53,7 +53,7 @@ TEST_F( TestNeuralTextureSource, GetInfo )
 {
     const unsigned int width = 1024;
     const unsigned int height = 512;
-    NeuralTextureSource source( width, height, "model.pth" );
+    NeuralTextureSource source( width, height );
     
     TextureInfo info;
     source.open( &info );
@@ -67,7 +67,7 @@ TEST_F( TestNeuralTextureSource, GetInfo )
 
 TEST_F( TestNeuralTextureSource, ReadTile )
 {
-    NeuralTextureSource source( 512, 512, "test_model.pth" );
+    NeuralTextureSource source( 512, 512 );
     
     TextureInfo info;
     source.open( &info );
@@ -100,7 +100,7 @@ TEST_F( TestNeuralTextureSource, ReadTile )
 
 TEST_F( TestNeuralTextureSource, ReadMipLevel )
 {
-    NeuralTextureSource source( 128, 128, "test_model.pth" );
+    NeuralTextureSource source( 128, 128 );
     
     TextureInfo info;
     source.open( &info );
@@ -133,7 +133,7 @@ TEST_F( TestNeuralTextureSource, ReadMipLevel )
 
 TEST_F( TestNeuralTextureSource, ReadMipTail )
 {
-    NeuralTextureSource source( 128, 128, "test_model.pth" );
+    NeuralTextureSource source( 128, 128 );
     
     TextureInfo info;
     source.open( &info );
@@ -179,7 +179,7 @@ TEST_F( TestNeuralTextureSource, ReadMipTail )
 
 TEST_F( TestNeuralTextureSource, ReadBaseColor )
 {
-    NeuralTextureSource source( 256, 256, "test_model.pth" );
+    NeuralTextureSource source( 256, 256 );
     
     TextureInfo info;
     source.open( &info );
@@ -200,7 +200,7 @@ TEST_F( TestNeuralTextureSource, ReadBaseColor )
 
 TEST_F( TestNeuralTextureSource, MipLevelColors )
 {
-    NeuralTextureSource source( 512, 512, "test_model.pth" );
+    NeuralTextureSource source( 512, 512 );
     
     TextureInfo info;
     source.open( &info );
@@ -233,7 +233,7 @@ TEST_F( TestNeuralTextureSource, MipLevelColors )
 
 TEST_F( TestNeuralTextureSource, GetFillType )
 {
-    NeuralTextureSource source( 256, 256, "test_model.pth" );
+    NeuralTextureSource source( 256, 256 );
     
     EXPECT_EQ( CU_MEMORYTYPE_DEVICE, source.getFillType() );
 }
@@ -251,7 +251,7 @@ TEST_F( TestNeuralTextureSource, DifferentDimensions )
     
     for( const auto& dim : dimensions )
     {
-        NeuralTextureSource source( dim.first, dim.second, "test_model.pth" );
+        NeuralTextureSource source( dim.first, dim.second );
         
         TextureInfo info;
         source.open( &info );

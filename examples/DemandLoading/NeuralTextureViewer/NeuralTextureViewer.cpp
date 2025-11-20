@@ -15,8 +15,8 @@
 
 #include <OptiXToolkit/OTKAppBase/OTKApp.h>
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
-#include <OptiXToolkit/ImageSource/MipMapImageSource.h>
-#include <OptiXToolkit/ImageSource/TiledImageSource.h>
+
+#include <NeuralTextureSource.h>
 
 #if defined(__GNUC__) || defined(__clang__)
 #pragma GCC diagnostic pop
@@ -52,7 +52,7 @@ inline bool endsWith( const std::string& text, const std::string& suffix )
 
 ImageSourcePtr NeuralTextureViewer::createImageSource( const std::string& textureName, bool tile, bool mipmap )
 {
-    ImageSourcePtr img = imageSource::createImageSource( textureName );
+    ImageSourcePtr img( new NeuralTextureSource( textureName ) );
     if( !img )
     {
         throw std::runtime_error( "Could not create requested texture " +
@@ -61,14 +61,6 @@ ImageSourcePtr NeuralTextureViewer::createImageSource( const std::string& textur
 
     imageSource::TextureInfo texInfo;
     img->open( &texInfo );
-    if( mipmap && texInfo.numMipLevels <= 1 )
-    {
-        img = createMipMapImageSource( img );
-    }
-    if( tile  && !texInfo.isTiled )
-    {
-        img = createTiledImageSource( img );
-    }
     return img;
 }
 
