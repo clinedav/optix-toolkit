@@ -8,9 +8,12 @@
 /// Device-side functions for sampling neural textures.
 
 #include <OptiXToolkit/NeuralTextures/InferenceDataOptix.h>
+#include <OptiXToolkit/NeuralTextures/InferenceOptix.h>
 #include <OptiXToolkit/NeuralTextures/Texture2DNeural.h>
 #include <OptiXToolkit/ShaderUtil/vec_math.h>
 #include <OptiXToolkit/ShaderUtil/stochastic_filtering.h>
+
+using namespace demandLoading;
 
 namespace neuralTextures {
 
@@ -123,7 +126,7 @@ ntcTex2DGradUdim( T_VEC_OUT& out, InferenceDataOptix* &infData, const DeviceCont
 template <class T_VEC_OUT> D_INLINE bool
 ntcTex2DGradUdim( T_VEC_OUT& out, const DeviceContext& context, unsigned int textureId, float x, float y, float2 ddx, float2 ddy, float2 xi )
 {
-    InfereceDataOptix* infData;
+    InferenceDataOptix* infData = nullptr;
     return ntcTex2DGradUdim<T_VEC_OUT>( out, infData, context, textureId, x, y, ddx, ddy, xi );
 }
 
