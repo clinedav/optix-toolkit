@@ -5,6 +5,8 @@
 #include <cmath>
 #include <iomanip>
 #include <iostream>
+#include <thread>
+#include <chrono>
 
 #include <cuda_runtime.h>
 
@@ -589,6 +591,10 @@ unsigned int OTKApp::performLaunches( )
         if( m_waitForTicket )
             state.ticket.wait();
 
+        if( state.ticket.numTasksRemaining() != 0 )
+            std::this_thread::sleep_for( std::chrono::milliseconds( 1 ) );
+        int numTasksRemaining = state.ticket.numTasksRemaining();
+
         // Call launchPrepare to synchronize new texture samplers and texture info to device memory.
         // launchPrepare also allocates device memory for a new demand texture context that can
         // be used to pull requests from the device.
@@ -618,7 +624,7 @@ unsigned int OTKApp::performLaunches( )
         // Poll the ticket to see if the previous batch of requests is filled. If the app waited
         // on the ticket, it will be ready. If not, it may take several launches to fill all of
         // the requests.
-        if( state.demandLoader && state.ticket.numTasksRemaining() == 0 )
+        if( state.demandLoader && numTasksRemaining == 0 && !m_pauseRequests )
         {
             numRequestsProcessed += static_cast<unsigned int>( state.ticket.numTasksTotal() );
             // Start an asynchronous pull of a new batch of requests from the device.
@@ -846,6 +852,8 @@ void OTKApp::keyCallback( GLFWwindow* window, int32_t key, int32_t /*scancode*/,
         initView();
     else if( key >= GLFW_KEY_0 && key <= GLFW_KEY_9 )
         m_render_mode = key - GLFW_KEY_0;
+    else if ( key == GLFW_KEY_R )
+        m_pauseRequests = !m_pauseRequests;
 }
 
 //------------------------------------------------------------------------------

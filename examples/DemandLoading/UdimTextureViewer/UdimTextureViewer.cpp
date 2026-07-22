@@ -114,7 +114,7 @@ void UdimTextureApp::createTexture()
             }
             if( !subImage && m_textureName == "checkerboard" )
             {
-                subImage.reset( new imageSource::MultiCheckerImage<float4>( m_texWidth, m_texHeight, 32, true ) );
+                subImage.reset( new imageSource::MultiCheckerImage<half4>( m_texWidth, m_texHeight, 32, true, true ) );
             }
             if( !subImage ) // many images of the same size
             {
@@ -291,7 +291,7 @@ int main( int argc, char* argv[] )
     options.maxInvalidatedPages = options.maxRequestedPages * 2;
     options.maxStagedPages      = options.maxRequestedPages * 2;
     options.maxRequestQueueSize = options.maxRequestedPages * 2;
-    options.maxThreads          = 0;
+    options.maxThreads          = 1;
 
     DemandLoadLogger::setLogFunction( standardDemandLoadLogCallback, logLevel );
     printKeyCommands();
