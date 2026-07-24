@@ -240,9 +240,10 @@ ticket = demandLoader.processRequests(stream, deviceContext);
 Interactive applications that need to maintain a stable framerate should set `maxRequestedPages` to a lower value (such as 64 or 512), and poll the ticket rather than waiting on it. After an OptiX launch, the application should call `processRequests` to get a fresh batch of requests if the previous batch is done, or call `freeDeviceContext` to release the device memory reserved in launchPrepare:
 
 ```
+int numTasksRemaining = ticket.numTasksRemaining();
 demandLoader.launchPrepare(stream, deviceContext);
 optixLaunch(...);
-if( ticket.numTasksRemaining() == 0 ) {
+if( numTasksRemaining == 0 ) {
     ticket = demandLoader.processRequests(stream, deviceContext);
 }
 else {
@@ -255,6 +256,10 @@ Things to note for interactive workloads:
 - Calling `launchPrepare` before all requests are processed is fine. The call will update the page table with whatever requests have been filled, and the request processor will continue working on the batch.
 
 - `launchPrepare` allocates memory for a `DeviceContext` on the device. This memory must be freed by calling either `processRequests` or `freeDeviceContext` after the launch.
+
+- We recommend that interactive applications wait to call processRequests until the previous batch of requests is filled and the page table entries have been transferred to the device. To do this, get the number of tasks remaining *before* calling launchPrepare, and call processRequests again when this value is zero.
+
+- If an application wants to wait for the batch to complete more work before the next OptiX launch, it can do so before calling launchPrepare.
 
 - The length of the request queue is related to `maxRequestedPages`. If it is set too high, requests in the queue may move out of the frame before they are filled, wasting work.
 
