@@ -23,7 +23,8 @@ class MultiCheckerImage : public imageSource::ImageSourceBase
 {
   public:
     /// Create a test image with the specified dimensions.
-    MultiCheckerImage( unsigned int width, unsigned int height, unsigned int squaresPerSide, bool useMipmaps = true, bool mipLevelColors = true );
+    MultiCheckerImage( unsigned int width, unsigned int height, unsigned int squaresPerSide, bool useMipmaps = true,
+        bool mipLevelColors = true, bool isTiled = true );
 
     /// The destructor is virtual.
     ~MultiCheckerImage() override {}
@@ -64,7 +65,7 @@ class MultiCheckerImage : public imageSource::ImageSourceBase
 
 template <class TYPE>
 MultiCheckerImage<TYPE>::MultiCheckerImage( unsigned int width, unsigned int height, unsigned int squaresPerSide, bool useMipmaps,
-                                            bool mipLevelColors )
+                                            bool mipLevelColors, bool isTiled )
     : m_squaresPerSide( squaresPerSide )
 {
     TYPE c;
@@ -74,7 +75,7 @@ MultiCheckerImage<TYPE>::MultiCheckerImage( unsigned int width, unsigned int hei
     m_info.numChannels  = imageSource::getNumChannels( c );
     m_info.numMipLevels = useMipmaps ? imageSource::calculateNumMipLevels( width, height ) : 1;
     m_info.isValid      = true;
-    m_info.isTiled      = true;
+    m_info.isTiled      = isTiled;
 
     if( mipLevelColors )
     {

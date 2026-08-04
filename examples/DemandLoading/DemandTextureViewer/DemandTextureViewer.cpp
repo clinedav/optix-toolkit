@@ -10,6 +10,7 @@
 #include <OptiXToolkit/DemandLoading/DemandLoadLogger.h>
 #include <OptiXToolkit/OTKAppBase/OTKApp.h>
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
+#include <OptiXToolkit/ImageSource/MultiCheckerImage.h>
 #include <OptiXToolkit/ImageSource/MipMapImageSource.h>
 #include <OptiXToolkit/ImageSource/TiledImageSource.h>
 
@@ -29,11 +30,11 @@ class DemandTextureViewer : public OTKApp
         : OTKApp( appTitle, width, height, outFileName, glInterop, UI_IMAGEVIEW )
     {
     }
-    void createTexture( const std::string& textureName, bool tile, bool mipmap );
+    void createTexture( const std::string& textureName, int width, int height, bool tile, bool mipmap );
     void createScene();
 
   private:
-    ImageSourcePtr createImageSource( const std::string& textureName, bool tile, bool mipmap );
+    ImageSourcePtr createImageSource( const std::string& textureName, int width, int height,bool tile, bool mipmap );
 };
 
 inline bool endsWith( const std::string& text, const std::string& suffix )
@@ -41,9 +42,19 @@ inline bool endsWith( const std::string& text, const std::string& suffix )
     return text.length() >= suffix.length() && text.substr( text.length() - suffix.length() ) == suffix;
 }
 
-ImageSourcePtr DemandTextureViewer::createImageSource( const std::string& textureName, bool tile, bool mipmap )
+ImageSourcePtr DemandTextureViewer::createImageSource( const std::string& textureName, int width, int height, bool tiled, bool mipmap )
 {
-    ImageSourcePtr img = imageSource::createImageSource( textureName );
+    ImageSourcePtr img;
+    if( textureName == "checkerboard")
+    {
+        const bool colors = true;
+        //img = std::make_shared<MultiCheckerImage<float4>>( width, height, 32, mipmap, colors, tiled );
+        img = std::make_shared<MultiCheckerImage<uchar4>>( width, height, 32, false, colors, false );
+    } else
+    {
+        img = imageSource::createImageSource( textureName );
+    }
+
     if( !img )
     {
         throw std::runtime_error( "Could not create requested texture " +
@@ -56,16 +67,16 @@ ImageSourcePtr DemandTextureViewer::createImageSource( const std::string& textur
     {
         img = createMipMapImageSource( img );
     }
-    if( tile  && !texInfo.isTiled )
+    if( tiled && !texInfo.isTiled )
     {
         img = createTiledImageSource( img );
     }
     return img;
 }
 
-void DemandTextureViewer::createTexture( const std::string& textureName, bool tile, bool mipmap )
+void DemandTextureViewer::createTexture( const std::string& textureName, int width, int height, bool tile, bool mipmap )
 {
-    ImageSourcePtr imageSource( createImageSource( textureName, tile, mipmap ) );
+    ImageSourcePtr imageSource( createImageSource( textureName, width, height, tile, mipmap ) );
 
     demandLoading::TextureDescriptor texDesc = makeTextureDescriptor( CU_TR_ADDRESS_MODE_CLAMP, FILTER_BILINEAR );
     for( OTKAppPerDeviceOptixState& state : m_perDeviceOptixStates )
@@ -103,9 +114,10 @@ void printUsage( const char* program )
         "Options:\n"
         "   --texture <texturefile|checkerboard|mandelbrot>     Use texture image file.\n"
         "   --dim=<width>x<height>      Specify rendering dimensions.\n"
+        "   --tex-dim=<width>x<height>  Specify texture dimensions.\n"
         "   --file <outputfile>         Render to output file and exit.\n"
-        "   --tile                      Make image tileable\n"
-        "   --mipmap                    Make image mipmapped\n"
+        "   --tile [0,1]                Make image not tileable\n"
+        "   --mipmap [0,1]              Make image mipmapped\n"
         "   --log <level>               Set demand load log level (0-10)\n"
         "   --no-gl-interop             Disable OpenGL interop.\n";
     // clang-format on
@@ -143,7 +155,9 @@ int main( int argc, char* argv[] )
     int         logLevel = 0;
 
     std::string textureName = "checkerboard";
-    bool        tile = false;
+    int         texWidth = 1024;
+    int         texHeight = 1024;
+    bool        tile = true;
     bool        mipmap = false;
 
     for( int i = 1; i < argc; ++i )
@@ -157,12 +171,14 @@ int main( int argc, char* argv[] )
             outFileName = argv[++i];
         else if( arg.substr( 0, 6 ) == "--dim=" )
             otk::parseDimensions( arg.substr( 6 ).c_str(), windowWidth, windowHeight );
+        else if( arg.substr( 0, 10 ) == "--tex-dim=" )
+            otk::parseDimensions( arg.substr( 10 ).c_str(), texWidth, texHeight );
         else if( arg == "--no-gl-interop" )
             glInterop = false;
-        else if( arg == "--tile" )
-            tile = true;
-        else if( arg == "--mipmap" )
-            mipmap = true;
+        else if( arg == "--tile" && !lastArg )
+            tile = (bool)atoi( argv[++i] );
+        else if( arg == "--mipmap" && !lastArg )
+            mipmap = (bool)atoi( argv[++i] );
         else if( arg == "--log" && !lastArg )
             logLevel = atoi( argv[++i] );
         else
@@ -174,7 +190,7 @@ int main( int argc, char* argv[] )
 
     DemandTextureViewer app( "Demand Texture Viewer", windowWidth, windowHeight, outFileName, glInterop );
     app.initDemandLoading( demandLoading::Options{} );
-    app.createTexture( textureName, tile, mipmap );
+    app.createTexture( textureName, texWidth, texHeight, tile, mipmap );
     app.createScene();
     app.initOptixPipelines( DemandTextureViewerCudaText(), DemandTextureViewerCudaSize );
     app.startLaunchLoop();
